@@ -28,13 +28,52 @@ Point your index and paint in the air — the neon canvas follows your fingertip
 
 Switch modes with gestures (hold 2 seconds) or with the keyboard.
 
+## Prerequisites
+
+Fresh machine? Install **git** and **Python 3.9–3.12** (3.11 recommended) first — MediaPipe 0.10.14 has no wheels for 3.13+.
+
+**Ubuntu / Debian**
+
+```bash
+sudo apt update
+sudo apt install -y git python3 python3-venv python3-pip libgl1 libglib2.0-0
+python3 --version    # harus 3.9–3.12
+```
+
+Ubuntu 20.04 ships Python 3.8 — install 3.11 via deadsnakes:
+
+```bash
+sudo apt install -y software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install -y python3.11 python3.11-venv
+```
+
+**Windows** (PowerShell)
+
+```powershell
+winget install Git.Git
+winget install Python.Python.3.11
+```
+
+Or download the installer from [python.org](https://www.python.org/downloads/) and check **"Add python.exe to PATH"**.
+
+**macOS**
+
+```bash
+xcode-select --install      # git
+brew install python@3.11    # atau unduh dari python.org
+```
+
+Verify: `git --version` and `python3 --version`.
+
 ## Quick start
 
 ```bash
 git clone https://github.com/AldoAdryano/QuadLens.git
 cd QuadLens
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+python3 -m venv venv        # Windows: py -3 -m venv venv
+source venv/bin/activate    # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 ./filters                       # interactive launcher: laptop cam / phone WiFi / phone USB
