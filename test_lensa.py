@@ -38,3 +38,48 @@ class TestQuadGeometry(unittest.TestCase):
         self.assertAlmostEqual(r, 0.0, places=3)
         self.assertAlmostEqual(p, 0.0, places=3)
         self.assertAlmostEqual(y, 0.0, places=3)
+
+import cv2
+
+from lensa import warp_efek, komposit, kurung_quad
+
+
+def identitas(roi, t):
+    out = roi.copy()
+    out[:] = (0, 0, 255)
+    return out
+
+
+class TestWarp(unittest.TestCase):
+    def frame(self):
+        return np.full((240, 320, 3), 50, np.uint8)
+
+    def quad(self):
+        return np.array([[10, 10], [200, 10], [200, 150], [10, 150]], np.float32)
+
+    def test_warp_shapes_and_meta(self):
+        efek, balik, meta = warp_efek(self.frame(), self.quad(), identitas, 0.0)
+        self.assertIsNotNone(efek)
+        self.assertEqual(efek.shape[1], 190)   # lebar quad
+        self.assertEqual(efek.shape[0], 140)
+        bx1, by1, bx2, by2, q_lokal = meta
+        self.assertGreaterEqual(bx1, 0)
+        self.assertLessEqual(bx2, 320)
+        self.assertEqual(balik.shape, (by2 - by1, bx2 - bx1, 3))
+
+    def test_warp_rejects_tiny_quad(self):
+        tiny = np.array([[10, 10], [20, 10], [20, 20], [10, 20]], np.float32)
+        efek, balik, meta = warp_efek(self.frame(), tiny, identitas, 0.0)
+        self.assertIsNone(efek)
+
+    def test_komposit_paints_red_in_quad(self):
+        tampil = self.frame().copy()
+        efek, balik, meta = warp_efek(tampil, self.quad(), identitas, 0.0)
+        out = komposit(tampil, balik, meta)
+        b, g, r = out[80, 100]
+        self.assertEqual((int(b), int(g), int(r)), (0, 0, 255))
+
+    def test_kurung_quad_draws(self):
+        img = np.zeros((240, 320, 3), np.uint8)
+        kurung_quad(img, self.quad(), (255, 255, 255))
+        self.assertTrue(img.any())
