@@ -4,7 +4,7 @@ import time
 import cv2
 import numpy as np
 
-FOTO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "foto")
+FOTO_DIR = os.path.expanduser("~/Filters/foto")
 
 _count = 0
 

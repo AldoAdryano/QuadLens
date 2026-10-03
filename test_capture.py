@@ -37,6 +37,9 @@ class TestSave(unittest.TestCase):
         self.assertIsNone(path)
         self.assertEqual(capture.photo_count(), 0)
 
+    def test_foto_dir_fixed_to_home_filters(self):
+        self.assertEqual(capture.FOTO_DIR, os.path.expanduser("~/Filters/foto"))
+
 
 class TestFlash(unittest.TestCase):
     def test_flash_fades_to_normal(self):
