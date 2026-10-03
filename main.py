@@ -3,14 +3,11 @@ import argparse
 import cv2
 import mediapipe as mp
 
-from hand_tracking import INDEX_TIP, THUMB_TIP
-from geometry import render_portal, portal_width, ClosingGestureDetector
-from filters import FILTROS
+from hand_tracking import build_hands
 from frame_source import FrameSource
 
 import time
 
-from hand_tracking import build_hands
 from modes import FiltersMode, TransitionController
 from lensa import LensaMode
 from draw import DrawMode
@@ -127,14 +124,15 @@ def main():
         tampil, _ = MODES[mode].update(frame, detected, now, mode_key)
         tampil = flash.apply(tampil, now)
 
-        if key == ord("s"):
-            if capture.save(tampil, "MANUAL"):
-                flash.trigger(now)
-
         fps = 1 / (now - prev_time) if prev_time else 0
         prev_time = now
         tampil = draw_hud(tampil, mode, MODES[mode], fps, source_label,
                           now, debug, len(detected.all))
+
+        if key == ord("s"):
+            if capture.save(tampil, "MANUAL"):
+                flash.trigger(now)
+
         cv2.imshow("Filters", tampil)
 
     cap.release()

@@ -1,6 +1,4 @@
 # modes.py
-import numpy as np
-
 from geometry import ClosingGestureDetector, portal_width, render_portal
 from filters import FILTROS
 

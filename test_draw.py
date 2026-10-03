@@ -78,6 +78,16 @@ class TestDrawMode(unittest.TestCase):
         m.update(self.frame(), Hands(), 0.0, -1)
         self.assertEqual(m.status, "SIAP")
 
+    def test_jump_gap_rejected(self):
+        m = DrawMode()
+        self.pump(m, hs(hand_with(F_POINT, tip=(0.9, 0.9))), n=6)
+        self.assertGreater(m.goresan, 0)
+        g = m.goresan
+        m.update(self.frame(), hs(hand_with(F_POINT, tip=(0.05, 0.05))), 2.0, -1)
+        self.assertEqual(m.goresan, g, "lompatan >160px tidak boleh menggambar")
+        m.update(self.frame(), hs(hand_with(F_POINT, tip=(0.05, 0.05))), 2.05, -1)
+        self.assertGreater(m.goresan, g)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -166,6 +166,8 @@ def m_film(roi, t):
     g = CLAHE.apply(abu(roi))
     h, w = g.shape
     if (h, w) not in _grain:
+        if len(_grain) >= 32:
+            _grain.clear()
         rng = np.random.default_rng(7)
         _grain[(h, w)] = [rng.normal(0, 11, (h, w)).astype(np.int16)
                           for _ in range(6)]
