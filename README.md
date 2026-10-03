@@ -203,6 +203,7 @@ python -m unittest discover -p "test_*.py"
 | Window doesn't appear | A display is required (X11/Wayland); the app is not headless |
 | Install errors from MediaPipe | Keep the pinned `mediapipe==0.10.14` |
 | Photos "missing" | They always land in `~/Filters/foto/` (check `LENS_*` / `MANUAL_*`) |
+| Windows: "HP via WiFi" shows *tidak terdeteksi* | Neighbor scan is Linux-only — pick **URL manual** and enter `http://<phone-ip>:8080/video` from IP Webcam |
 
 Press `d` for the debug overlay (landmark info) while diagnosing.
 
