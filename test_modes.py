@@ -34,3 +34,37 @@ class TestClassifiers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+from modes import HoldTransition
+
+
+class TestHoldTransition(unittest.TestCase):
+    def test_triggers_once_after_hold(self):
+        t = HoldTransition(hold_s=2.0, enter_grace_s=0.0)
+        self.assertFalse(t.update(True, 0.0))
+        self.assertFalse(t.update(True, 1.9))
+        self.assertTrue(t.update(True, 2.0))
+        self.assertFalse(t.update(True, 2.5))
+
+    def test_reset_after_grace(self):
+        t = HoldTransition(hold_s=2.0, reset_grace_s=0.3, enter_grace_s=0.0)
+        t.update(True, 0.0)
+        t.update(True, 1.0)
+        self.assertFalse(t.update(False, 1.1))   # masih dalam grace
+        self.assertFalse(t.update(False, 1.5))   # lewat grace -> reset
+        self.assertFalse(t.update(True, 1.6))
+        self.assertTrue(t.update(True, 3.7))     # hitung ulang penuh
+
+    def test_enter_grace_blocks(self):
+        t = HoldTransition(hold_s=1.0, enter_grace_s=0.5)
+        t.arm(10.0)
+        self.assertFalse(t.update(True, 10.2))
+        self.assertFalse(t.update(True, 10.6))
+        self.assertTrue(t.update(True, 11.6))
+
+    def test_short_hold_no_trigger(self):
+        t = HoldTransition(hold_s=2.0, enter_grace_s=0.0)
+        t.update(True, 0.0)
+        self.assertFalse(t.update(False, 1.0))
+        self.assertFalse(t.update(False, 2.0))
