@@ -27,3 +27,38 @@ def get_extended_fingers(hand_landmarks, w, h):
         "ring": is_extended(RING_TIP, RING_MCP),
         "pinky": is_extended(PINKY_TIP, PINKY_MCP),
     }
+
+
+class Hand:
+    def __init__(self, landmarks, label, fingers):
+        self.landmarks = landmarks
+        self.label = label
+        self.fingers = fingers
+
+
+class Hands:
+    def __init__(self, left=None, right=None, all=None):
+        self.left = left
+        self.right = right
+        self.all = all if all is not None else []
+
+
+def build_hands(results, w, h):
+    out = Hands()
+    if results.multi_hand_landmarks and results.multi_handedness:
+        for hand_landmarks, handedness in zip(
+            results.multi_hand_landmarks, results.multi_handedness
+        ):
+            raw = handedness.classification[0].label
+            label = "Right" if raw == "Left" else "Left"
+            hand = Hand(
+                landmarks=hand_landmarks.landmark,
+                label=label,
+                fingers=get_extended_fingers(hand_landmarks, w, h),
+            )
+            out.all.append(hand)
+            if label == "Left":
+                out.left = hand
+            else:
+                out.right = hand
+    return out
