@@ -103,6 +103,8 @@ python main.py --source http://192.168.1.5:8080/video
 
 `./filters` remembers your last source and offers a `--check` probe for camera / WiFi / USB before you start.
 
+Using an external webcam? Any device index works: `python main.py --source 1` (or `2`, `3`, …), or pick **Kamera eksternal (indeks)** in the launcher menu.
+
 ## Gesture cheat sheet
 
 | From | Gesture (hold ~2 s) | To |
@@ -197,14 +199,15 @@ python -m unittest discover -p "test_*.py"
 | Symptom | Fix |
 |---------|-----|
 | `camera busy` / black feed | Close other apps using the webcam; test with `./filters --check` |
-| WiFi stream won't start | Phone and laptop on the **same WiFi**; IP Webcam must be running; URL format `http://<phone-ip>:8080/video` — probe with `./filters --check` |
+| WiFi stream won't start | Phone and laptop on the **same WiFi**; IP Webcam must be running; URL format `http://<phone-ip>:8080/video` — probe with `./filters --check`. If auto-detect misses it, pick **URL manual** |
+| Windows: "HP via USB" shows *tidak terdeteksi* | Install adb: `winget install --id Google.PlatformTools -e`, open a **new** PowerShell, enable **USB debugging** on the phone, start the IP Webcam server |
 | Gestures don't switch modes | Hold the pose ~2 s steadily; improve lighting — MediaPipe needs a clearly visible hand |
 | Quad won't open in LENSA | Both hands need a clear **L** (thumb + index spread); the quad must span at least ~120 px |
 | Window doesn't appear | A display is required (X11/Wayland); the app is not headless |
 | Install errors from MediaPipe | Keep the pinned `mediapipe==0.10.14` |
 | `pip error ... mediapipe==0.10.14 ... no matching distribution` | Your venv uses Python >3.12 — recreate it: `Remove-Item -Recurse -Force venv` then `py -3.11 -m venv venv` (Windows) or `python3.11 -m venv venv` (Linux/macOS) |
 | Photos "missing" | They always land in `~/Filters/foto/` (check `LENS_*` / `MANUAL_*`) |
-| Windows: "HP via WiFi" shows *tidak terdeteksi* | Neighbor scan is Linux-only — pick **URL manual** and enter `http://<phone-ip>:8080/video` from IP Webcam |
+| Windows: "HP via WiFi" shows *tidak terdeteksi* | Scan uses `ip neigh` (Linux) with `arp -a` fallback (Windows) — if it still misses the phone, pick **URL manual** and enter `http://<phone-ip>:8080/video` |
 
 Press `d` for the debug overlay (landmark info) while diagnosing.
 
