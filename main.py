@@ -8,9 +8,38 @@ from geometry import render_portal, portal_width, ClosingGestureDetector
 from filters import FILTROS
 from frame_source import FrameSource
 
+import time
+
+from hand_tracking import build_hands
+from modes import FiltersMode, TransitionController
+from lensa import LensaMode
+from draw import DrawMode
+import capture
+
 
 def parse_source(value: str):
     return int(value) if value.isdigit() else value
+
+
+def draw_hud(frame, mode_name, mode_obj, fps, source_label, now, debug, hands_n):
+    h, w = frame.shape[:2]
+    import cv2 as _cv2
+    from lensa import teks, FONT, CYAN, PUTIH, ABU, AMBER
+    if int(now * 2) % 2 == 0:
+        _cv2.circle(frame, (28, 30), 8, (60, 60, 235), _cv2.FILLED)
+    teks(frame, "REC", (45, 38), 0.7, 2)
+    teks(frame, time.strftime("%d.%m.%Y %H:%M:%S"), (w - 320, 38), 0.6, 2)
+    teks(frame, f"{mode_name} | {mode_obj.lens_name} | FPS {int(fps)} | FOTO {capture.photo_count()}",
+         (22, h - 24), 0.6, 2)
+    teks(frame, f"SUMBER: {source_label}", (w - 320, h - 24), 0.55, 2, AMBER)
+    st = mode_obj.status
+    if st and st != "-":
+        n = getattr(mode_obj, "goresan", None)
+        label = f"{st}   GORESAN {n}" if n is not None else st
+        teks(frame, label, (22, h - 92 if debug else h - 58), 0.6, 2)
+    if debug:
+        teks(frame, f"TANGAN {hands_n}", (22, h - 92), 0.5, 2, AMBER)
+    return frame
 
 
 def main():
@@ -23,21 +52,45 @@ def main():
     args = parser.parse_args()
 
     mp_hands = mp.solutions.hands
-    hands = mp_hands.Hands(
-        max_num_hands=2,
-        min_detection_confidence=0.6,
-        min_tracking_confidence=0.6,
-    )
+    hands = mp_hands.Hands(max_num_hands=2, min_detection_confidence=0.6,
+                           min_tracking_confidence=0.6)
 
     cap = FrameSource(parse_source(args.source))
     if not cap.isOpened():
+        cap.release()
         raise RuntimeError(
             "No se pudo abrir la camara. Revisa el indice de camara, la URL del "
             "stream o los permisos."
         )
 
-    filtro_index = 0
-    closing_detector = ClosingGestureDetector()
+    flash = capture.Flash()
+    MODES = {
+        "FILTERS": FiltersMode(),
+        "LENSA": LensaMode(flash=flash),
+        "GAMBAR": DrawMode(),
+    }
+    URUTAN = ["FILTERS", "LENSA", "GAMBAR"]
+    transisi = TransitionController()
+
+    mode = "FILTERS"
+    sebelumnya = "FILTERS"
+    MODES[mode].on_enter(0.0)
+    transisi.arm(mode, 0.0)
+
+    debug = False
+    prev_time = 0.0
+    source_label = str(args.source)
+
+    def ganti(target, now):
+        nonlocal mode, sebelumnya
+        if target == mode:
+            return
+        if target == "__sebelumnya__":
+            target = sebelumnya
+        sebelumnya = mode
+        mode = target
+        MODES[mode].on_enter(now)
+        transisi.arm(mode, now)
 
     while True:
         ok, frame = cap.read()
@@ -49,44 +102,40 @@ def main():
             continue
         frame = cv2.flip(frame, 1)
         h, w = frame.shape[:2]
+        now = time.time()
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = hands.process(rgb)
+        detected = build_hands(results, w, h)
 
-        left_hand = None
-        right_hand = None
-
-        if results.multi_hand_landmarks and results.multi_handedness:
-            for hand_landmarks, handedness in zip(
-                results.multi_hand_landmarks, results.multi_handedness
-            ):
-                raw_label = handedness.classification[0].label
-                label = "Right" if raw_label == "Left" else "Left"
-
-                if label == "Left":
-                    left_hand = hand_landmarks
-                else:
-                    right_hand = hand_landmarks
-
-        if left_hand is not None and right_hand is not None:
-            lm_left = left_hand.landmark
-            lm_right = right_hand.landmark
-
-            p1 = (lm_left[INDEX_TIP].x * w, lm_left[INDEX_TIP].y * h)
-            p2 = (lm_left[THUMB_TIP].x * w, lm_left[THUMB_TIP].y * h)
-            p3 = (lm_right[INDEX_TIP].x * w, lm_right[INDEX_TIP].y * h)
-            p4 = (lm_right[THUMB_TIP].x * w, lm_right[THUMB_TIP].y * h)
-
-            width = portal_width(p1, p2, p3, p4)
-
-            if closing_detector.update(width, w):
-                filtro_index = (filtro_index + 1) % len(FILTROS)
-
-            frame = render_portal(frame, p1, p2, p3, p4, FILTROS[filtro_index])
-
-        cv2.imshow(" ", frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
             break
+        if key == ord("d"):
+            debug = not debug
+
+        target = transisi.check(mode, detected, now)
+        if target:
+            ganti(target, now)
+
+        if key in (ord("f"), ord("l"), ord("g")):
+            ganti({"f": "FILTERS", "l": "LENSA", "g": "GAMBAR"}[key], now)
+        elif key == ord("m"):
+            ganti(URUTAN[(URUTAN.index(mode) + 1) % len(URUTAN)], now)
+
+        mode_key = key if key in (ord(" "), ord("p"), ord("c")) else -1
+        tampil, _ = MODES[mode].update(frame, detected, now, mode_key)
+        tampil = flash.apply(tampil, now)
+
+        if key == ord("s"):
+            if capture.save(tampil, "MANUAL"):
+                flash.trigger(now)
+
+        fps = 1 / (now - prev_time) if prev_time else 0
+        prev_time = now
+        tampil = draw_hud(tampil, mode, MODES[mode], fps, source_label,
+                          now, debug, len(detected.all))
+        cv2.imshow("Filters", tampil)
 
     cap.release()
     cv2.destroyAllWindows()
