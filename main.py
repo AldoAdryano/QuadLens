@@ -1,12 +1,27 @@
+import argparse
+
 import cv2
 import mediapipe as mp
 
 from hand_tracking import INDEX_TIP, THUMB_TIP
 from geometry import render_portal, portal_width, ClosingGestureDetector
 from filters import FILTROS
+from frame_source import FrameSource
+
+
+def parse_source(value: str):
+    return int(value) if value.isdigit() else value
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Filtros AR con portal de manos")
+    parser.add_argument(
+        "--source",
+        default="0",
+        help="Indice de camara (ej. 0) o URL de stream (ej. http://IP:8080/video)",
+    )
+    args = parser.parse_args()
+
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
         max_num_hands=2,
@@ -14,10 +29,11 @@ def main():
         min_tracking_confidence=0.6,
     )
 
-    cap = cv2.VideoCapture(0)
+    cap = FrameSource(parse_source(args.source))
     if not cap.isOpened():
         raise RuntimeError(
-            "No se pudo abrir la camara. Revisa el indice de camara o los permisos."
+            "No se pudo abrir la camara. Revisa el indice de camara, la URL del "
+            "stream o los permisos."
         )
 
     filtro_index = 0
@@ -26,7 +42,11 @@ def main():
     while True:
         ok, frame = cap.read()
         if not ok:
-            break
+            if not cap.alive:
+                break
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+            continue
         frame = cv2.flip(frame, 1)
         h, w = frame.shape[:2]
 
