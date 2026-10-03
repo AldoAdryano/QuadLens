@@ -32,10 +32,6 @@ class TestClassifiers(unittest.TestCase):
         self.assertFalse(is_peace(F(index=True, middle=True, ring=True)))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 from modes import HoldTransition
 
 
