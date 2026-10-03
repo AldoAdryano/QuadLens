@@ -14,12 +14,10 @@ def venv_python(here=HERE):
 
 VENV_PY = venv_python()
 STATE_PATH = os.path.expanduser("~/.config/filters/state.json")
-ADB = os.path.expanduser("~/platform-tools/adb")
-if not os.path.exists(ADB):
-    ADB = "adb"
 USB_PORT = 18080
 USB_URL = f"http://127.0.0.1:{USB_PORT}/video"
 CAM_SRC = "0"
+CAM_INDEX = "__cam__"
 MANUAL = "__manual__"
 
 
@@ -57,10 +55,18 @@ def detect_camera():
         return False
 
 
+def find_adb():
+    for cand in ("adb", "adb.exe"):
+        p = os.path.expanduser(os.path.join("~", "platform-tools", cand))
+        if os.path.exists(p):
+            return p
+    return "adb"
+
+
 def run_adb(args, timeout=8):
     try:
         out = subprocess.run(
-            [ADB] + args, capture_output=True, text=True, timeout=timeout
+            [find_adb()] + args, capture_output=True, text=True, timeout=timeout
         )
         return out.stdout
     except Exception:
@@ -79,24 +85,51 @@ def detect_usb():
     return {"status": status, "url": USB_URL}
 
 
+def _priv(ip):
+    if ip.startswith(("192.168.", "10.")):
+        return True
+    if ip.startswith("172."):
+        parts = ip.split(".")
+        return len(parts) > 1 and parts[1].isdigit() and 16 <= int(parts[1]) <= 31
+    return False
+
+
+def _parse_neigh(text):
+    ips = []
+    for line in text.splitlines():
+        parts = line.split()
+        if not parts or "FAILED" in line:
+            continue
+        if parts[0] not in ips and _priv(parts[0]):
+            ips.append(parts[0])
+    return ips
+
+
+def _parse_arp(text):
+    ips = []
+    for line in text.splitlines():
+        parts = line.split()
+        if parts and _priv(parts[0]) and parts[0] not in ips:
+            ips.append(parts[0])
+    return ips
+
+
 def wifi_ips(dev="wlp2s0"):
     try:
         out = subprocess.run(
             ["ip", "neigh", "show", "dev", dev],
             capture_output=True, text=True, timeout=5,
         ).stdout
+        return _parse_neigh(out)
+    except Exception:
+        pass
+    try:
+        out = subprocess.run(
+            ["arp", "-a"], capture_output=True, text=True, timeout=5,
+        ).stdout
+        return _parse_arp(out)
     except Exception:
         return []
-    ips = []
-    for line in out.splitlines():
-        parts = line.split()
-        if not parts or parts[0].startswith("fe80"):
-            continue
-        if "FAILED" in line:
-            continue
-        if parts[0] not in ips:
-            ips.append(parts[0])
-    return ips
 
 
 def detect_wifi(saved_url=None):
@@ -118,8 +151,8 @@ def detect_wifi(saved_url=None):
 def choose_default(last_source, camera_ok, wifi_url, usb_url):
     if not last_source:
         return None
-    if last_source == CAM_SRC and camera_ok:
-        return CAM_SRC
+    if camera_ok and last_source.isdigit():
+        return last_source
     if wifi_url and last_source == wifi_url:
         return wifi_url
     if usb_url and last_source == usb_url:
@@ -148,6 +181,7 @@ def build_menu(camera_ok, wifi, usb, last_source):
                        "app_down": "HP terdeteksi, IP Webcam tidak merespons",
                        "no_device": "tidak terdeteksi"}[usb["status"]],
         },
+        {"label": "Kamera eksternal (indeks)", "source": CAM_INDEX, "status": "isi indeks"},
         {"label": "URL manual", "source": MANUAL, "status": "isi sendiri"},
     ]
     return entries
@@ -211,7 +245,12 @@ def main(argv=None):
             print("Input tidak valid.")
             continue
         source = entries[idx]["source"]
-        if source == MANUAL:
+        if source == CAM_INDEX:
+            raw_idx = input("Indeks kamera [0]: ").strip() or "0"
+            if not raw_idx.isdigit():
+                continue
+            source = raw_idx
+        elif source == MANUAL:
             source = input("Masukkan URL (mis. http://IP:8080/video): ").strip()
             if not source:
                 continue

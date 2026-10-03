@@ -72,6 +72,51 @@ class TestVenvPython(unittest.TestCase):
         self.assertIn(os.path.join("venv", "bin"), p)
 
 
+class TestFindAdb(unittest.TestCase):
+    @mock.patch("launcher.os.path.exists", return_value=False)
+    def test_falls_back_to_path(self, m):
+        self.assertEqual(L.find_adb(), "adb")
+
+    @mock.patch("launcher.os.path.exists", return_value=True)
+    def test_home_platform_tools(self, m):
+        self.assertTrue(L.find_adb().endswith(os.path.join("platform-tools", "adb")))
+
+    @mock.patch("launcher.os.path.exists", side_effect=[False, True])
+    def test_windows_exe(self, m):
+        self.assertTrue(L.find_adb().endswith("adb.exe"))
+
+
+ARP_WINDOWS = """Interface: 192.168.1.7 --- 0x5
+  Internet Address      Physical Address      Type
+  192.168.1.5           aa-bb-cc-dd-ee-ff     dynamic
+  10.0.0.4              11-22-33-44-55-66     dynamic
+  192.168.1.5           aa-bb-cc-dd-ee-ff     dynamic
+  169.254.3.3           99-88-77-66-55-44     invalid
+"""
+
+
+class TestWifiIps(unittest.TestCase):
+    @mock.patch("launcher.subprocess.run")
+    def test_linux_ip_neigh(self, m):
+        m.return_value = mock.Mock(stdout="192.168.100.6 dev wlp2s0 lladdr aa:bb:cc REACHABLE\n")
+        ips = L.wifi_ips()
+        self.assertEqual(ips, ["192.168.100.6"])
+        self.assertEqual(m.call_count, 1)
+        self.assertIn("neigh", m.call_args[0][0])
+
+    @mock.patch("launcher.subprocess.run")
+    def test_falls_back_to_arp_a(self, m):
+        m.side_effect = [FileNotFoundError("no ip"), mock.Mock(stdout=ARP_WINDOWS)]
+        ips = L.wifi_ips()
+        self.assertEqual(ips, ["192.168.1.5", "10.0.0.4"])
+        self.assertEqual(m.call_count, 2)
+        self.assertEqual(m.call_args_list[1][0][0][0], "arp")
+
+    @mock.patch("launcher.subprocess.run", side_effect=FileNotFoundError)
+    def test_no_commands_returns_empty(self, m):
+        self.assertEqual(L.wifi_ips(), [])
+
+
 class TestDetectUsb(unittest.TestCase):
     @mock.patch("launcher.probe_url", return_value=True)
     @mock.patch("launcher.run_adb", side_effect=["List of devices attached\nXYZ\tdevice\n", "18080"])
@@ -140,6 +185,9 @@ class TestDefaultChoice(unittest.TestCase):
     def test_none_when_stale(self):
         self.assertIsNone(L.choose_default("http://old:8080/video", True, "http://new:8080/video", None))
 
+    def test_last_camera_any_index(self):
+        self.assertEqual(L.choose_default("1", True, None, None), "1")
+
 
 class TestMenu(unittest.TestCase):
     def test_menu_lines_and_default(self):
@@ -150,8 +198,10 @@ class TestMenu(unittest.TestCase):
             last_source="0",
         )
         labels = [e["label"] for e in entries]
-        self.assertEqual(len(labels), 4)
+        self.assertEqual(len(labels), 5)
         self.assertTrue(any("laptop" in l for l in labels))
+        eksternal = next(e for e in entries if "eksternal" in e["label"])
+        self.assertEqual(eksternal["source"], L.CAM_INDEX)
         self.assertNotIn("/dev/video0", entries[0]["status"],
                          "pesan status harus netral lintas-OS")
         default_idx = next(i for i, e in enumerate(entries) if e.get("source") == "0")
