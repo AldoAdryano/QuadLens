@@ -118,3 +118,81 @@ class TestLenses(unittest.TestCase):
         img = np.full((100, 100, 3), 200, np.uint8)
         out = L.grade_retro(img)
         self.assertEqual(out.dtype, np.uint8)
+
+
+from hand_tracking import Hand, Hands
+from lensa import LensaMode, LENSA_LIST
+from modes import is_L
+
+
+def l_hand(px_thumb, px_index, w=320, h=240):
+    pts = [types.SimpleNamespace(x=0.5, y=0.5)] * 21
+    pts[4] = types.SimpleNamespace(x=px_thumb[0] / w, y=px_thumb[1] / h)
+    pts[8] = types.SimpleNamespace(x=px_index[0] / w, y=px_index[1] / h)
+    f = {"thumb": True, "index": True, "middle": False, "ring": False, "pinky": False}
+    return Hand(landmarks=pts, label="Left", fingers=f)
+
+
+def l_pair():
+    a = l_hand((30, 30), (140, 30))
+    b = l_hand((180, 200), (290, 200))
+    return Hands(left=a, right=b, all=[a, b])
+
+
+class TestLensаModePlaceholder(unittest.TestCase):
+    pass
+
+
+class TestLensaMode(unittest.TestCase):
+    def frame(self):
+        return np.full((240, 320, 3), 80, np.uint8)
+
+    def test_no_quad_without_L(self):
+        m = LensaMode(saver=lambda *a: self.fail("tidak boleh simpan"))
+        out, p = m.update(self.frame(), Hands(), 0.0, -1)
+        self.assertIsNone(p)
+        self.assertEqual(m.status, "-")
+
+    def test_L_builds_quad_and_grades_frame(self):
+        m = LensaMode(saver=lambda *a: None)
+        out, _ = m.update(self.frame(), l_pair(), 0.0, -1)
+        self.assertIsNotNone(m.quad)
+        self.assertTrue(out.any())
+
+    def test_space_cycles_lens(self):
+        m = LensaMode(saver=lambda *a: None)
+        first = m.lens_name
+        m.update(self.frame(), l_pair(), 0.0, ord(" "))
+        self.assertNotEqual(m.lens_name, first)
+        self.assertEqual(len(LENSA_LIST), 7)
+
+    def test_hold_3s_saves_photo_and_resets(self):
+        saved = []
+        m = LensaMode(saver=lambda img, tag: saved.append((img, tag)))
+        f = self.frame()
+        for i in range(30):
+            t = i * 0.1
+            m.update(f, l_pair(), t, -1)
+            self.assertEqual(saved, [], f"tersimpan terlalu cepat di t={t}")
+        m.update(f, l_pair(), 4.2, -1)
+        self.assertEqual(len(saved), 1)
+        self.assertTrue(saved[0][1].startswith("LENS"))
+        self.assertIsNone(m.quad)
+
+    def test_genGGAM_when_quad_small(self):
+        m = LensaMode(saver=lambda *a: None)
+        a = l_hand((150, 120), (156, 120))
+        b = l_hand((160, 120), (166, 120))
+        hs = Hands(left=a, right=b, all=[a, b])
+        m.update(self.frame(), hs, 0.0, -1)
+        self.assertEqual(m.status, "GENGGAM")
+
+    def test_on_enter_resets(self):
+        m = LensaMode(saver=lambda *a: None)
+        m.update(self.frame(), l_pair(), 0.0, -1)
+        m.on_enter(9.0)
+        self.assertIsNone(m.quad)
+        self.assertEqual(m.status, "-")
+
+
+import types

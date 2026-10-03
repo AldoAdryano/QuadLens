@@ -3,6 +3,26 @@ import math
 import cv2
 import numpy as np
 
+FONT = cv2.FONT_HERSHEY_DUPLEX
+CYAN = (255, 235, 0)
+MAGENTA = (200, 0, 255)
+AMBER = (0, 180, 255)
+PUTIH = (240, 245, 250)
+ABU = (120, 110, 130)
+SAMAR = (55, 50, 62)
+
+
+def teks(img, s, org, skala, tebal=2, warna=PUTIH, aberasi=True):
+    x, y = org
+    if aberasi:
+        cv2.putText(img, s, (x - 2, y), FONT, skala, MAGENTA, tebal, cv2.LINE_AA)
+        cv2.putText(img, s, (x + 2, y), FONT, skala, CYAN, tebal, cv2.LINE_AA)
+    cv2.putText(img, s, (x, y), FONT, skala, warna, tebal, cv2.LINE_AA)
+
+
+import mediapipe as mp
+KONEKSI = mp.solutions.hands.HAND_CONNECTIONS
+
 
 def urutkan_quad(titik):
     p = np.array(titik, dtype=np.float32)
@@ -182,3 +202,139 @@ def m_negatif(roi, t):
 LENSA_LIST = [("MONO", m_mono), ("KONTRAS", m_kontras), ("FILM", m_film),
               ("GARIS", m_garis), ("AMBANG", m_ambang), ("DITHER", m_dither),
               ("NEGATIF", m_negatif)]
+
+
+import time as _time_unused
+import capture
+from modes import is_L
+
+HALUS = 0.40
+MIN_BUKA = 120
+GOYANG = 9
+TAHAN_FOTO = 3.0
+
+
+class LensaMode:
+    def __init__(self, saver=None, flash=None):
+        self.saver = saver if saver is not None else capture.save
+        self.flash = flash
+        self.quad = None
+        self.hilang = 99
+        self.mulai_diam = None
+        self.idx = 0
+        self._status = "-"
+
+    def on_enter(self, now):
+        self.quad = None
+        self.hilang = 99
+        self.mulai_diam = None
+        self._status = "-"
+
+    @property
+    def lens_name(self):
+        return LENSA_LIST[self.idx][0]
+
+    @property
+    def status(self):
+        return self._status
+
+    def update(self, frame, hands, now, key):
+        if key == ord(" "):
+            self.idx = (self.idx + 1) % len(LENSA_LIST)
+
+        h, w = frame.shape[:2]
+        nama_lensa, fn = LENSA_LIST[self.idx]
+        sudut = []
+        for hand in hands.all:
+            if is_L(hand.fingers):
+                sudut.append((int(hand.landmarks[4].x * w), int(hand.landmarks[4].y * h)))
+                sudut.append((int(hand.landmarks[8].x * w), int(hand.landmarks[8].y * h)))
+
+        mentah = cocokkan(urutkan_quad(sudut[:4]), self.quad) if len(sudut) >= 4 else None
+
+        geser_maks = 0.0
+        if mentah is not None:
+            if self.quad is None:
+                self.quad = mentah
+            else:
+                geser_maks = float(np.max(np.linalg.norm(mentah - self.quad, axis=1)))
+                self.quad = self.quad + HALUS * (mentah - self.quad)
+            self.hilang = 0
+        else:
+            self.hilang += 1
+
+        tampil = grade_retro(frame)
+        self._status = "-"
+        aktif = self.hilang < 6 and self.quad is not None
+
+        if aktif:
+            q = self.quad.astype(np.float32)
+            diag = (np.linalg.norm(q[2] - q[0]) + np.linalg.norm(q[3] - q[1])) / 2
+
+            if diag < MIN_BUKA:
+                self._status = "GENGGAM"
+                self.mulai_diam = None
+                c = titik_int(q.mean(axis=0))
+                r = int(18 + 6 * math.sin(now * 6))
+                cv2.circle(tampil, c, r, CYAN, 2, cv2.LINE_AA)
+                cv2.circle(tampil, c, 3, CYAN, cv2.FILLED)
+                teks(tampil, "TARIK UNTUK MEMBUKA", (c[0] - 128, c[1] - 40), 0.6, 2)
+            else:
+                efek, balik, meta = warp_efek(frame, q, fn, now)
+                if efek is not None:
+                    tampil = komposit(tampil, balik, meta)
+
+                    if geser_maks > GOYANG or self.mulai_diam is None:
+                        self.mulai_diam = now
+                    sisa = TAHAN_FOTO - (now - self.mulai_diam)
+                    self._status = "ATUR" if geser_maks > GOYANG else "DIAM"
+                    warna = AMBER if sisa > 1 else MAGENTA
+
+                    cv2.polylines(tampil, [q.astype(np.int32)], True, SAMAR, 1, cv2.LINE_AA)
+                    kurung_quad(tampil, q, warna)
+                    n = q[0] + (q[1] - q[0]) * 0.02
+                    teks(tampil, f"{nama_lensa}  {efek.shape[1]}x{efek.shape[0]}",
+                         (int(n[0]), max(18, int(n[1]) - 12)), 0.5, 1, warna)
+                    r, p, y = orientasi(q)
+                    teks(tampil, f"ROLL {r:+.0f}  PITCH {p:+.0f}  YAW {y:+.0f}",
+                         (w - 320, h - 58), 0.55, 2, AMBER)
+
+                    maju = min(1.0, max(0.0, 1 - sisa / TAHAN_FOTO))
+                    a, b = q[3], q[2]
+                    cv2.line(tampil, titik_int(a), titik_int(b), SAMAR, 4, cv2.LINE_AA)
+                    cv2.line(tampil, titik_int(a), titik_int(a + (b - a) * maju),
+                             warna, 4, cv2.LINE_AA)
+
+                    if sisa <= 0:
+                        hasil = self.saver(efek, "LENS")
+                        if hasil and self.flash is not None:
+                            self.flash.trigger(now)
+                        self.mulai_diam = None
+                        self.hilang = 99
+                        self.quad = None
+                    elif sisa < TAHAN_FOTO - 0.25:
+                        angka = str(int(math.ceil(sisa)))
+                        sk = 2.4 + 0.4 * abs(math.sin(sisa * math.pi))
+                        (tw, th), _ = cv2.getTextSize(angka, FONT, sk, 6)
+                        c = titik_int(q.mean(axis=0))
+                        teks(tampil, angka, (int(c[0] - tw / 2), int(c[1] + th / 2)),
+                             sk, 6, warna)
+        else:
+            self.mulai_diam = None
+            if self.hilang > 20:
+                self.quad = None
+
+        for hand in hands.all:
+            px = [(int(l.x * w), int(l.y * h)) for l in hand.landmarks]
+            ok = is_L(hand.fingers)
+            for con in KONEKSI:
+                cv2.line(tampil, px[con[0]], px[con[1]],
+                         (150, 120, 90) if ok else (95, 80, 105), 1, cv2.LINE_AA)
+            for i in (4, 8):
+                cv2.circle(tampil, px[i], 7, CYAN if ok else ABU, 2 if ok else 1, cv2.LINE_AA)
+
+        if not hands.all:
+            teks(tampil, "BENTUK 'L' DUA TANGAN, SATUKAN, LALU TARIK",
+                 (22, h - 58), 0.55, 2, ABU)
+
+        return tampil, None
