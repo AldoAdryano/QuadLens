@@ -1,5 +1,11 @@
 # QuadLens
 
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.10-5C3EE8?logo=opencv&logoColor=white)](https://opencv.org/)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-0.10.14-4f4f4f?logo=mediapipe&logoColor=white)](https://github.com/google/mediapipe)
+[![Tests](https://img.shields.io/badge/tests-91-brightgreen)](https://github.com/AldoAdryano/QuadLens)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 A multi-mode webcam playground: AR filters behind a hand-framed portal, perspective-warped photo lenses, and air-painting with gestures — all in one live camera app.
 
 ## Modes
@@ -58,6 +64,30 @@ In-mode gestures:
 | `d` | Toggle debug overlay |
 | `q` | Quit |
 
+## How it works
+
+```
+ laptop cam · phone WiFi (IP Webcam) · phone USB/adb
+        │
+        ▼
+   FrameSource ──► mirror ──► MediaPipe Hands ──► finger states
+        │                                              │
+        │              ┌───────────────────────────────┤
+        │              ▼               ▼               ▼
+        │          FILTERS           LENSA          GAMBAR
+        │      portal + 8 fx    quad warp +      air painting
+        │      pinch to cycle    7 retro lenses   pen gestures
+        │              │          hold 3 s = photo      │
+        │              └───────────────┬────────────────┘
+        ▼                              ▼
+      HUD ◄── fps · source · mode · status      flash · save (s / auto)
+        │
+        ▼
+   window (OpenCV HighGUI) · photo → ~/Filters/foto/
+```
+
+Each frame runs through exactly one mode module; the HUD is drawn last, so the on-screen text always matches the active mode. Gestures are debounced with a 2-second hold (`HoldTransition`) so a stray frame never switches modes.
+
 ## Photos
 
 Photos are always saved to `~/Filters/foto/`:
@@ -94,6 +124,20 @@ python -m unittest discover -p "test_*.py"
 
 91 tests covering keyboard routing, modes, drawing, lenses, capture, launcher, and frame sources.
 
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `camera busy` / black feed | Close other apps using the webcam; test with `./filters --check` |
+| WiFi stream won't start | Phone and laptop on the **same WiFi**; IP Webcam must be running; URL format `http://<phone-ip>:8080/video` — probe with `./filters --check` |
+| Gestures don't switch modes | Hold the pose ~2 s steadily; improve lighting — MediaPipe needs a clearly visible hand |
+| Quad won't open in LENSA | Both hands need a clear **L** (thumb + index spread); the quad must span at least ~120 px |
+| Window doesn't appear | A display is required (X11/Wayland); the app is not headless |
+| Install errors from MediaPipe | Keep the pinned `mediapipe==0.10.14` |
+| Photos "missing" | They always land in `~/Filters/foto/` (check `LENS_*` / `MANUAL_*`) |
+
+Press `d` for the debug overlay (landmark info) while diagnosing.
+
 ## Extending
 
 - **New filter:** define a function in `filters.py` that takes and returns a BGR crop, then append it to `FILTROS` — the cycle adjusts automatically.
@@ -101,7 +145,7 @@ python -m unittest discover -p "test_*.py"
 
 ## Stack
 
-Python 3.10 · OpenCV · MediaPipe 0.10.14 · NumPy
+Python 3.10+ (tested on 3.11) · OpenCV 4.10 · MediaPipe 0.10.14 · NumPy
 
 ## License
 
