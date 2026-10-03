@@ -69,17 +69,36 @@ Verify: `git --version` and `python3 --version`.
 
 ## Quick start
 
+> **Windows:** after `winget install ...`, open a **new** terminal (or refresh `$env:Path`) so the new tools are on PATH.
+
+**Linux / macOS**
+
 ```bash
 git clone https://github.com/AldoAdryano/QuadLens.git
 cd QuadLens
-python3 -m venv venv        # Windows: py -3 -m venv venv
-source venv/bin/activate    # Windows: venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 
-./filters                       # interactive launcher: laptop cam / phone WiFi / phone USB
+./filters                # interactive launcher: laptop cam / phone WiFi / phone USB
 # or jump straight in:
 python main.py --source 0                              # laptop webcam
 python main.py --source http://192.168.1.5:8080/video  # phone stream (IP Webcam app)
+```
+
+**Windows (PowerShell)**
+
+```powershell
+git clone https://github.com/AldoAdryano/QuadLens.git
+cd QuadLens
+py -3 -m venv venv
+.\venv\Scripts\Activate.ps1    # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+pip install -r requirements.txt
+
+python filters                 # interactive launcher
+# or jump straight in:
+python main.py --source 0
+python main.py --source http://192.168.1.5:8080/video
 ```
 
 `./filters` remembers your last source and offers a `--check` probe for camera / WiFi / USB before you start.
