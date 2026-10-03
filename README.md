@@ -91,7 +91,7 @@ python main.py --source http://192.168.1.5:8080/video  # phone stream (IP Webcam
 ```powershell
 git clone https://github.com/AldoAdryano/QuadLens.git
 cd QuadLens
-py -3 -m venv venv
+py -3.11 -m venv venv
 .\venv\Scripts\Activate.ps1    # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 pip install -r requirements.txt
 
@@ -202,6 +202,7 @@ python -m unittest discover -p "test_*.py"
 | Quad won't open in LENSA | Both hands need a clear **L** (thumb + index spread); the quad must span at least ~120 px |
 | Window doesn't appear | A display is required (X11/Wayland); the app is not headless |
 | Install errors from MediaPipe | Keep the pinned `mediapipe==0.10.14` |
+| `pip error ... mediapipe==0.10.14 ... no matching distribution` | Your venv uses Python >3.12 — recreate it: `Remove-Item -Recurse -Force venv` then `py -3.11 -m venv venv` (Windows) or `python3.11 -m venv venv` (Linux/macOS) |
 | Photos "missing" | They always land in `~/Filters/foto/` (check `LENS_*` / `MANUAL_*`) |
 | Windows: "HP via WiFi" shows *tidak terdeteksi* | Neighbor scan is Linux-only — pick **URL manual** and enter `http://<phone-ip>:8080/video` from IP Webcam |
 
