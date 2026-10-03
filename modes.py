@@ -1,4 +1,10 @@
 # modes.py
+import numpy as np
+
+from geometry import ClosingGestureDetector, portal_width, render_portal
+from filters import FILTROS
+
+
 def is_L(f):
     return f["thumb"] and f["index"] and not f["middle"] and not f["ring"] and not f["pinky"]
 
@@ -94,3 +100,40 @@ class TransitionController:
             if hold.update(ok, now):
                 return target
         return None
+
+
+class FiltersMode:
+    def __init__(self):
+        self.index = 0
+        self.closing = ClosingGestureDetector()
+
+    def on_enter(self, now):
+        self.index = 0
+        self.closing = ClosingGestureDetector()
+
+    @property
+    def lens_name(self):
+        return FILTROS[self.index].__name__
+
+    @property
+    def status(self):
+        return "-"
+
+    def update(self, frame, hands, now, key):
+        if key == ord(" "):
+            self.index = (self.index + 1) % len(FILTROS)
+
+        if hands.left is not None and hands.right is not None:
+            h, w = frame.shape[:2]
+            lm_l = hands.left.landmarks
+            lm_r = hands.right.landmarks
+            p1 = (lm_l[8].x * w, lm_l[8].y * h)
+            p2 = (lm_l[4].x * w, lm_l[4].y * h)
+            p3 = (lm_r[8].x * w, lm_r[8].y * h)
+            p4 = (lm_r[4].x * w, lm_r[4].y * h)
+
+            width = portal_width(p1, p2, p3, p4)
+            if self.closing.update(width, w):
+                self.index = (self.index + 1) % len(FILTROS)
+            frame = render_portal(frame, p1, p2, p3, p4, FILTROS[self.index])
+        return frame, None

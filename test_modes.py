@@ -125,3 +125,62 @@ class TestTransitionController(unittest.TestCase):
     def test_enter_grace_prevents_instant(self):
         self.c.arm("FILTERS", 0.0)
         self.assertIsNone(self.c.check("FILTERS", self.hands(h(POINT)), 0.4))
+
+
+import numpy as np
+
+from modes import FiltersMode
+
+
+def hand_at(x, y, fingers=None):
+    pts = [types.SimpleNamespace(x=x, y=y)] * 21
+    pts[4] = types.SimpleNamespace(x=x + 0.02, y=y + 0.02)
+    pts[8] = types.SimpleNamespace(x=x - 0.02, y=y - 0.02)
+    return Hand(landmarks=pts, label="Left", fingers=fingers or F(True, True))
+
+
+def hands_pair():
+    return Hands(left=hand_at(0.3, 0.4), right=hand_at(0.7, 0.4),
+                 all=[hand_at(0.3, 0.4), hand_at(0.7, 0.4)])
+
+
+class TestFiltersMode(unittest.TestCase):
+    def frame(self):
+        return np.zeros((480, 640, 3), np.uint8)
+
+    def test_portal_only_with_two_hands(self):
+        m = FiltersMode()
+        f = self.frame()
+        out, p = m.update(f, Hands(), 0.0, -1)
+        self.assertIsNone(p)
+        self.assertFalse(out.any())
+        out, _ = m.update(f, hands_pair(), 0.0, -1)
+        self.assertTrue(out.any(), "portal harus menggambar frame")
+
+    def test_space_advances_filter(self):
+        m = FiltersMode()
+        first = m.lens_name
+        m.update(self.frame(), Hands(), 0.0, ord(" "))
+        self.assertNotEqual(m.lens_name, first)
+
+    def test_on_enter_resets_index(self):
+        m = FiltersMode()
+        m.update(self.frame(), Hands(), 0.0, ord(" "))
+        m.on_enter(1.0)
+        first = FiltersMode().lens_name
+        self.assertEqual(m.lens_name, first)
+
+    def test_status_and_lens_name(self):
+        m = FiltersMode()
+        self.assertEqual(m.status, "-")
+        self.assertTrue(m.lens_name.startswith("filtro"))
+
+    def test_single_hand_no_portal(self):
+        m = FiltersMode()
+        f = self.frame()
+        one = Hands(left=hand_at(0.3, 0.4), all=[hand_at(0.3, 0.4)])
+        out, _ = m.update(f, one, 0.0, -1)
+        self.assertFalse(out.any())
+
+
+import types
