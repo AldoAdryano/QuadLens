@@ -1,4 +1,4 @@
-#!/home/aldo/Filters/venv/bin/python
+#!/usr/bin/env python3
 from launcher import main
 
 if __name__ == "__main__":
