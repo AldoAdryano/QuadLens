@@ -1,4 +1,7 @@
 import argparse
+import os
+
+os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "flags;low_delay|fflags;nobuffer")
 
 import cv2
 import mediapipe as mp

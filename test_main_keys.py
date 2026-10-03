@@ -1,3 +1,4 @@
+import os
 import unittest
 
 import main
@@ -13,6 +14,11 @@ class TestModeKeys(unittest.TestCase):
         for key in range(256):
             if key in main.KEY_MODE:
                 self.assertIn(main.KEY_MODE[key], ("FILTERS", "LENSA", "GAMBAR"))
+
+    def test_ffmpeg_low_latency_options_set_on_import(self):
+        opts = os.environ.get("OPENCV_FFMPEG_CAPTURE_OPTIONS", "")
+        self.assertIn("nobuffer", opts, "stream FFmpeg harus dibuka tanpa buffer")
+        self.assertIn("low_delay", opts)
 
 
 if __name__ == "__main__":
