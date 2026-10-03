@@ -13,6 +13,8 @@ from lensa import LensaMode
 from draw import DrawMode
 import capture
 
+KEY_MODE = {ord("f"): "FILTERS", ord("l"): "LENSA", ord("g"): "GAMBAR"}
+
 
 def parse_source(value: str):
     return int(value) if value.isdigit() else value
@@ -115,8 +117,8 @@ def main():
         if target:
             ganti(target, now)
 
-        if key in (ord("f"), ord("l"), ord("g")):
-            ganti({"f": "FILTERS", "l": "LENSA", "g": "GAMBAR"}[key], now)
+        if key in KEY_MODE:
+            ganti(KEY_MODE[key], now)
         elif key == ord("m"):
             ganti(URUTAN[(URUTAN.index(mode) + 1) % len(URUTAN)], now)
 
