@@ -88,6 +88,22 @@ class TestDrawMode(unittest.TestCase):
         m.update(self.frame(), hs(hand_with(F_POINT, tip=(0.05, 0.05))), 2.05, -1)
         self.assertGreater(m.goresan, g)
 
+    def test_two_hand_tap_cycles_pen_color(self):
+        m = DrawMode()
+        jauh = hs(hand_with(F_POINT, tip=(0.1, 0.5)), hand_with(F_POINT, tip=(0.9, 0.5)))
+        dekat = hs(hand_with(F_POINT, tip=(0.5, 0.5)), hand_with(F_POINT, tip=(0.5, 0.52)))
+        awal = m.idx_pena
+        m.update(self.frame(), jauh, 0.0, -1)
+        self.assertEqual(m.idx_pena, awal, "jarak jauh tidak boleh ganti warna")
+        m.update(self.frame(), dekat, 0.05, -1)
+        self.assertEqual(m.idx_pena, awal + 1, "tap telunjuk dua tangan harus ganti warna")
+        m.update(self.frame(), dekat, 0.10, -1)
+        self.assertEqual(m.idx_pena, awal + 1, "tap bertahan tidak boleh ganti berulang")
+        m.update(self.frame(), jauh, 0.15, -1)
+        self.assertEqual(m.idx_pena, awal + 1)
+        m.update(self.frame(), dekat, 0.20, -1)
+        self.assertEqual(m.idx_pena, awal + 2, "tap kedua setelah pisah harus ganti lagi")
+
 
 if __name__ == "__main__":
     unittest.main()

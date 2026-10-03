@@ -8,6 +8,7 @@ HALUS_PENA = 0.5
 LOMPAT_MAKS = 160
 MULAI_BUTUH = 2
 HENTI_BUTUH = 4
+SENTUH_MAKS = 40
 PENA = [PUTIH, CYAN, MAGENTA, AMBER]
 
 
@@ -22,6 +23,7 @@ class DrawMode:
         self.pena_halus = None
         self._goresan = 0
         self._status = "SIAP"
+        self.sentuh = False
 
     @property
     def lens_name(self):
@@ -42,6 +44,7 @@ class DrawMode:
         self.pena_akhir = None
         self.pena_halus = None
         self._status = "SIAP"
+        self.sentuh = False
 
     def update(self, frame, hands, now, key):
         h, w = frame.shape[:2]
@@ -56,6 +59,18 @@ class DrawMode:
             self.beruntun_ya = self.beruntun_tidak = 0
         if key == ord("p"):
             self.idx_pena = (self.idx_pena + 1) % len(PENA)
+
+        if len(hands.all) >= 2:
+            a = hands.all[0].landmarks[8]
+            b = hands.all[1].landmarks[8]
+            dx = (a.x - b.x) * w
+            dy = (a.y - b.y) * h
+            dekat = (dx * dx + dy * dy) ** 0.5 < SENTUH_MAKS
+            if dekat and not self.sentuh:
+                self.idx_pena = (self.idx_pena + 1) % len(PENA)
+            self.sentuh = dekat
+        else:
+            self.sentuh = False
 
         tampil = cv2.multiply(grade_retro(frame), 0.5, dtype=cv2.CV_8U)
         self._status = "SIAP"
