@@ -42,15 +42,34 @@ class TestProbeUrl(unittest.TestCase):
 
 
 class TestDetectCamera(unittest.TestCase):
-    @mock.patch("launcher.os.path.exists")
+    @mock.patch("cv2.VideoCapture")
     def test_present(self, m):
-        m.return_value = True
+        m.return_value.isOpened.return_value = True
         self.assertTrue(L.detect_camera())
+        m.return_value.release.assert_called_once()
 
-    @mock.patch("launcher.os.path.exists")
+    @mock.patch("cv2.VideoCapture")
     def test_absent(self, m):
-        m.return_value = False
+        m.return_value.isOpened.return_value = False
         self.assertFalse(L.detect_camera())
+
+    def test_cv2_missing_returns_false(self):
+        with mock.patch.dict("sys.modules", {"cv2": None}):
+            self.assertFalse(L.detect_camera())
+
+
+class TestVenvPython(unittest.TestCase):
+    @mock.patch("launcher.os.name", "nt")
+    def test_windows(self):
+        p = L.venv_python("/app")
+        self.assertEqual(os.path.basename(p), "python.exe")
+        self.assertIn(os.path.join("venv", "Scripts"), p)
+
+    @mock.patch("launcher.os.name", "posix")
+    def test_posix(self):
+        p = L.venv_python("/app")
+        self.assertEqual(os.path.basename(p), "python")
+        self.assertIn(os.path.join("venv", "bin"), p)
 
 
 class TestDetectUsb(unittest.TestCase):
@@ -133,6 +152,8 @@ class TestMenu(unittest.TestCase):
         labels = [e["label"] for e in entries]
         self.assertEqual(len(labels), 4)
         self.assertTrue(any("laptop" in l for l in labels))
+        self.assertNotIn("/dev/video0", entries[0]["status"],
+                         "pesan status harus netral lintas-OS")
         default_idx = next(i for i, e in enumerate(entries) if e.get("source") == "0")
         self.assertEqual(default_idx, L.default_index(entries, "0"))
 

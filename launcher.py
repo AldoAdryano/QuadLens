@@ -4,7 +4,15 @@ import subprocess
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VENV_PY = os.path.join(HERE, "venv", "bin", "python")
+
+
+def venv_python(here=HERE):
+    if os.name == "nt":
+        return os.path.join(here, "venv", "Scripts", "python.exe")
+    return os.path.join(here, "venv", "bin", "python")
+
+
+VENV_PY = venv_python()
 STATE_PATH = os.path.expanduser("~/.config/filters/state.json")
 ADB = os.path.expanduser("~/platform-tools/adb")
 if not os.path.exists(ADB):
@@ -39,7 +47,14 @@ def probe_url(url, timeout=1.5):
 
 
 def detect_camera():
-    return os.path.exists("/dev/video0")
+    try:
+        import cv2
+        cap = cv2.VideoCapture(0)
+        ok = bool(cap.isOpened())
+        cap.release()
+        return ok
+    except Exception:
+        return False
 
 
 def run_adb(args, timeout=8):
@@ -118,7 +133,7 @@ def build_menu(camera_ok, wifi, usb, last_source):
         {
             "label": "Kamera laptop",
             "source": CAM_SRC if camera_ok else None,
-            "status": "siap" if camera_ok else "tidak ada (/dev/video0)",
+            "status": "siap" if camera_ok else "tidak ada",
         },
         {
             "label": f"HP via WiFi {wifi_url or ''}".strip(),
