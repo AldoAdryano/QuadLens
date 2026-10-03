@@ -6,10 +6,10 @@ from draw import DrawMode
 from hand_tracking import Hand, Hands
 
 
-def hand_with(fingers, tip=(0.5, 0.5)):
+def hand_with(fingers, tip=(0.5, 0.5), label="Right"):
     pts = [types.SimpleNamespace(x=0.5, y=0.5)] * 21
     pts[8] = types.SimpleNamespace(x=tip[0], y=tip[1])
-    return Hand(landmarks=pts, label="Right", fingers=fingers)
+    return Hand(landmarks=pts, label=label, fingers=fingers)
 
 
 F_POINT = {"thumb": False, "index": True, "middle": False, "ring": False, "pinky": False}
@@ -103,6 +103,26 @@ class TestDrawMode(unittest.TestCase):
         self.assertEqual(m.idx_pena, awal + 1)
         m.update(self.frame(), dekat, 0.20, -1)
         self.assertEqual(m.idx_pena, awal + 2, "tap kedua setelah pisah harus ganti lagi")
+
+    def test_original_hand_stays_active_when_second_appears(self):
+        m = DrawMode()
+        kanan = hand_with(F_POINT, tip=(0.2, 0.5), label="Right")
+        self.pump(m, hs(kanan), n=6)
+        self.assertGreater(m.goresan, 0)
+        kiri = hand_with(F_FIST, tip=(0.7, 0.5), label="Left")
+        m.update(self.frame(), hs(kiri, kanan), 5.0, -1)
+        self.assertNotEqual(m.status, "HAPUS", "kepal di tangan BARU tidak boleh menghapus")
+        self.assertGreater(m.goresan, 0)
+        self.assertTrue(m.kanvas.any())
+
+    def test_active_hand_reselects_when_original_leaves(self):
+        m = DrawMode()
+        kanan = hand_with(F_POINT, tip=(0.2, 0.5), label="Right")
+        kiri = hand_with(F_FIST, tip=(0.7, 0.5), label="Left")
+        self.pump(m, hs(kanan), n=6)
+        self.assertGreater(m.goresan, 0)
+        m.update(self.frame(), hs(kiri), 6.0, -1)
+        self.assertEqual(m.status, "HAPUS", "setelah tangan aktif hilang, tangan tersisa yang dipakai")
 
 
 if __name__ == "__main__":

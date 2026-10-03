@@ -24,6 +24,7 @@ class DrawMode:
         self._goresan = 0
         self._status = "SIAP"
         self.sentuh = False
+        self.tangan_aktif = None
 
     @property
     def lens_name(self):
@@ -45,6 +46,7 @@ class DrawMode:
         self.pena_halus = None
         self._status = "SIAP"
         self.sentuh = False
+        self.tangan_aktif = None
 
     def update(self, frame, hands, now, key):
         h, w = frame.shape[:2]
@@ -75,7 +77,13 @@ class DrawMode:
         tampil = cv2.multiply(grade_retro(frame), 0.5, dtype=cv2.CV_8U)
         self._status = "SIAP"
 
-        hand = hands.all[0] if hands.all else None
+        if hands.all:
+            cocok = [x for x in hands.all if x.label == self.tangan_aktif]
+            hand = cocok[0] if cocok else hands.all[0]
+            self.tangan_aktif = hand.label
+        else:
+            hand = None
+            self.tangan_aktif = None
         f = hand.fingers if hand else None
         ujung = None
 
