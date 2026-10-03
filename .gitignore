@@ -8,3 +8,5 @@ venv/
 
 .vscode/
 Thumbs.db
+.worktrees/
+.superpowers/
