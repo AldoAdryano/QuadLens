@@ -19,7 +19,7 @@
 - Tanpa dependensi baru; API tracking tetap `mp.solutions.hands` (tanpa model `hand_landmarker.task`)
 - Jangan ubah: `filters.py`, `geometry.py`, `frame_source.py`, `launcher.py`, `filters` (executable), `test_main.py`, `test_launcher.py`, `test_frame_source.py`
 - `main.py` wajib mempertahankan `parse_source`, `--source`, dan alur `FrameSource` (dites `test_main`)
-- Path foto absolut: `<repo>/foto/` (dihitung dari lokasi file `capture.py`)
+- Path foto absolut: `~/Filters/foto/` (path absolut tetap, bukan relatif lokasi script)
 - String UI memakai bahasa Indonesia mengikuti gaya RETROLENS (`GENGGAM`, `TARIK UNTUK MEMBUKA`, dst)
 - Jangan menambah komentar kode
 - Konvensi commit: `feat:` / `test:` / `fix:`
@@ -667,7 +667,7 @@ git commit -m "feat: FiltersMode port of legacy portal loop"
 **Interfaces:**
 - Produces (dipakai Task 10, 12):
   ```python
-  FOTO_DIR: str                       # <repo>/foto/
+  FOTO_DIR: str                       # ~/Filters/foto/
   def save(img, tag="LENS", folder=FOTO_DIR) -> str | None   # unik, tidak menimpa; +1 counter
   def photo_count() -> int
   def reset_count() -> None

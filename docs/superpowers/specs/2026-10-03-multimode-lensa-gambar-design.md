@@ -145,7 +145,7 @@ Port RETROLENS dengan perilaku identik:
 
 ## 8. Capture
 
-- Path: `<repo>/foto/` (absolut dari lokasi script — aman dari cwd mana pun)
+- Path: `~/Filters/foto/` (path absolut tetap — foto selalu di rumah, dari mana pun kode dijalankan)
 - Auto (LENSA): quad aktif + geser ≤ 9px → tahan 3 detik → simpan **hasil
   lensa (rect warp)** sebagai `LENS_YYYYmmdd_HHMMSS.png` → flash putih
   0,3s → reset quad (hilang=99, quad=None) → konter +1
