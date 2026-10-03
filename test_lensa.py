@@ -83,3 +83,38 @@ class TestWarp(unittest.TestCase):
         img = np.zeros((240, 320, 3), np.uint8)
         kurung_quad(img, self.quad(), (255, 255, 255))
         self.assertTrue(img.any())
+
+import lensa as L
+
+
+class TestLenses(unittest.TestCase):
+    def roi(self, h=64, w=96):
+        rng = np.random.default_rng(1)
+        return rng.integers(0, 255, (h, w, 3), dtype=np.uint8)
+
+    def test_all_lenses_preserve_shape_dtype(self):
+        for name, fn in L.LENSA_LIST:
+            out = fn(self.roi(), 0.0)
+            self.assertEqual(out.shape, (64, 96, 3), name)
+            self.assertEqual(out.dtype, np.uint8, name)
+
+    def test_lens_names(self):
+        names = [n for n, _ in L.LENSA_LIST]
+        self.assertEqual(names, ["MONO", "KONTRAS", "FILM", "GARIS",
+                                 "AMBANG", "DITHER", "NEGATIF"])
+
+    def test_registry_disjoint_from_filters(self):
+        from filters import FILTROS
+        lensa_fns = {fn for _, fn in L.LENSA_LIST}
+        self.assertEqual(lensa_fns & set(FILTROS), set())
+
+    def test_grade_retro_various_sizes(self):
+        for h, w in [(480, 640), (720, 1280), (33, 51)]:
+            img = np.full((h, w, 3), 120, np.uint8)
+            out = L.grade_retro(img)
+            self.assertEqual(out.shape, (h, w, 3))
+
+    def test_grade_retro_returns_uint8(self):
+        img = np.full((100, 100, 3), 200, np.uint8)
+        out = L.grade_retro(img)
+        self.assertEqual(out.dtype, np.uint8)
