@@ -29,6 +29,7 @@ def save(img, tag="LENS", folder=FOTO_DIR):
             nama = f"{base}_{n}.png"
             n += 1
         if not cv2.imwrite(nama, img):
+            print("Gagal menyimpan foto:", nama)
             return None
         _count += 1
         return nama
