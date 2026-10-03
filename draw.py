@@ -9,6 +9,7 @@ LOMPAT_MAKS = 160
 MULAI_BUTUH = 2
 HENTI_BUTUH = 4
 SENTUH_MAKS = 40
+TANGAN_PISAH = 60
 PENA = [PUTIH, CYAN, MAGENTA, AMBER]
 
 
@@ -67,10 +68,16 @@ class DrawMode:
             b = hands.all[1].landmarks[8]
             dx = (a.x - b.x) * w
             dy = (a.y - b.y) * h
+            wa = hands.all[0].landmarks[0]
+            wb = hands.all[1].landmarks[0]
+            wx = (wa.x - wb.x) * w
+            wy = (wa.y - wb.y) * h
             dekat = (dx * dx + dy * dy) ** 0.5 < SENTUH_MAKS
-            if dekat and not self.sentuh:
+            tangan_pisah = (wx * wx + wy * wy) ** 0.5 >= TANGAN_PISAH
+            aktif = dekat and tangan_pisah
+            if aktif and not self.sentuh:
                 self.idx_pena = (self.idx_pena + 1) % len(PENA)
-            self.sentuh = dekat
+            self.sentuh = aktif
         else:
             self.sentuh = False
 

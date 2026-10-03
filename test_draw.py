@@ -6,8 +6,9 @@ from draw import DrawMode
 from hand_tracking import Hand, Hands
 
 
-def hand_with(fingers, tip=(0.5, 0.5), label="Right"):
+def hand_with(fingers, tip=(0.5, 0.5), label="Right", wrist=(0.5, 0.5)):
     pts = [types.SimpleNamespace(x=0.5, y=0.5)] * 21
+    pts[0] = types.SimpleNamespace(x=wrist[0], y=wrist[1])
     pts[8] = types.SimpleNamespace(x=tip[0], y=tip[1])
     return Hand(landmarks=pts, label=label, fingers=fingers)
 
@@ -90,8 +91,10 @@ class TestDrawMode(unittest.TestCase):
 
     def test_two_hand_tap_cycles_pen_color(self):
         m = DrawMode()
-        jauh = hs(hand_with(F_POINT, tip=(0.1, 0.5)), hand_with(F_POINT, tip=(0.9, 0.5)))
-        dekat = hs(hand_with(F_POINT, tip=(0.5, 0.5)), hand_with(F_POINT, tip=(0.5, 0.52)))
+        jauh = hs(hand_with(F_POINT, tip=(0.1, 0.5), wrist=(0.1, 0.9)),
+                  hand_with(F_POINT, tip=(0.9, 0.5), wrist=(0.9, 0.9), label="Left"))
+        dekat = hs(hand_with(F_POINT, tip=(0.5, 0.5), wrist=(0.2, 0.9)),
+                   hand_with(F_POINT, tip=(0.5, 0.52), wrist=(0.8, 0.9), label="Left"))
         awal = m.idx_pena
         m.update(self.frame(), jauh, 0.0, -1)
         self.assertEqual(m.idx_pena, awal, "jarak jauh tidak boleh ganti warna")
@@ -123,6 +126,18 @@ class TestDrawMode(unittest.TestCase):
         self.assertGreater(m.goresan, 0)
         m.update(self.frame(), hs(kiri), 6.0, -1)
         self.assertEqual(m.status, "HAPUS", "setelah tangan aktif hilang, tangan tersisa yang dipakai")
+
+    def test_duplicate_detection_of_one_hand_does_not_change_color(self):
+        m = DrawMode()
+        awal = m.idx_pena
+        dup1 = hand_with(F_POINT, tip=(0.5, 0.5), label="Right", wrist=(0.45, 0.7))
+        dup2 = hand_with(F_POINT, tip=(0.51, 0.51), label="Left", wrist=(0.46, 0.71))
+        m.update(self.frame(), hs(dup1, dup2), 0.0, -1)
+        self.assertEqual(m.idx_pena, awal, "deteksi ganda satu tangan tidak boleh ganti warna")
+        m.update(self.frame(), hs(dup2, dup1), 0.05, -1)
+        self.assertEqual(m.idx_pena, awal, "deteksi ganda dengan urutan terbalik juga tidak boleh")
+        m.update(self.frame(), hs(dup1, dup2), 0.10, -1)
+        self.assertEqual(m.idx_pena, awal)
 
 
 if __name__ == "__main__":
