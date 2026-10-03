@@ -54,3 +54,43 @@ class HoldTransition:
             self._start = None
             self._latched = False
         return False
+
+
+class TransitionController:
+    TABLE = {
+        "FILTERS": [("kepal", True, "LENSA"), ("tunjuk_ketat", False, "GAMBAR")],
+        "LENSA": [("tunjuk_ketat", False, "GAMBAR"), ("kepal", False, "FILTERS")],
+        "GAMBAR": [("telapak", False, "__sebelumnya__")],
+    }
+    GESTURES = {
+        "kepal": is_kepal,
+        "tunjuk_ketat": is_tunjuk_ketat,
+        "telapak": is_telapak,
+    }
+
+    def __init__(self):
+        self._holds = {
+            mode: [HoldTransition() for _ in rows]
+            for mode, rows in self.TABLE.items()
+        }
+
+    def arm(self, mode, now):
+        for hold in self._holds[mode]:
+            hold.arm(now)
+
+    def check(self, mode, hands, now):
+        for (gestur, dua_tangan, target), hold in zip(
+            self.TABLE[mode], self._holds[mode]
+        ):
+            if dua_tangan:
+                ok = (
+                    hands.left is not None
+                    and hands.right is not None
+                    and is_kepal(hands.left.fingers)
+                    and is_kepal(hands.right.fingers)
+                )
+            else:
+                ok = any(self.GESTURES[gestur](x.fingers) for x in hands.all)
+            if hold.update(ok, now):
+                return target
+        return None

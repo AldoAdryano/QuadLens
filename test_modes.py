@@ -64,3 +64,64 @@ class TestHoldTransition(unittest.TestCase):
         t.update(True, 0.0)
         self.assertFalse(t.update(False, 1.0))
         self.assertFalse(t.update(False, 2.0))
+
+
+from hand_tracking import Hand, Hands
+from modes import TransitionController
+
+
+def h(fingers):
+    return Hand(landmarks=[], label="Left", fingers=fingers)
+
+
+FIST = F()
+PALM = F(True, True, True, True, True)
+POINT = F(index=True)
+EMPTY = Hands()
+
+
+class TestTransitionController(unittest.TestCase):
+    def setUp(self):
+        self.c = TransitionController()
+
+    def hands(self, *hs):
+        all_ = list(hs)
+        left = all_[0] if all_ else None
+        right = all_[1] if len(all_) > 1 else None
+        return Hands(left=left, right=right, all=all_)
+
+    def test_filters_kepal_requires_both(self):
+        one = self.hands(h(FIST))
+        self.assertIsNone(self.c.check("FILTERS", one, 100.0))
+        self.c.arm("FILTERS", 100.0)
+        self.assertIsNone(self.c.check("FILTERS", one, 103.0))
+        both = self.hands(h(FIST), h(FIST))
+        self.assertIsNone(self.c.check("FILTERS", both, 103.0))
+        self.assertEqual(self.c.check("FILTERS", both, 105.0), "LENSA")
+
+    def test_filters_tunjuk_ketat_single_hand(self):
+        self.c.arm("FILTERS", 0.0)
+        hs = self.hands(h(POINT))
+        self.assertIsNone(self.c.check("FILTERS", hs, 3.0))
+        self.assertEqual(self.c.check("FILTERS", hs, 5.0), "GAMBAR")
+
+    def test_lensa_cells(self):
+        self.c.arm("LENSA", 0.0)
+        self.assertIsNone(self.c.check("LENSA", self.hands(h(POINT)), 3.0))
+        self.assertEqual(self.c.check("LENSA", self.hands(h(POINT)), 5.0), "GAMBAR")
+        self.c.arm("LENSA", 10.0)
+        self.assertIsNone(self.c.check("LENSA", self.hands(h(FIST)), 13.0))
+        self.assertEqual(self.c.check("LENSA", self.hands(h(FIST)), 15.0), "FILTERS")
+
+    def test_gambar_telapak_ke_sebelumnya(self):
+        self.c.arm("GAMBAR", 0.0)
+        self.assertIsNone(self.c.check("GAMBAR", self.hands(h(PALM)), 3.0))
+        self.assertEqual(self.c.check("GAMBAR", self.hands(h(PALM)), 5.0), "__sebelumnya__")
+
+    def test_empty_hands_none(self):
+        self.c.arm("FILTERS", 0.0)
+        self.assertIsNone(self.c.check("FILTERS", EMPTY, 5.0))
+
+    def test_enter_grace_prevents_instant(self):
+        self.c.arm("FILTERS", 0.0)
+        self.assertIsNone(self.c.check("FILTERS", self.hands(h(POINT)), 0.4))
