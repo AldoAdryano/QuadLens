@@ -8,6 +8,16 @@
 
 A multi-mode webcam playground: AR filters behind a hand-framed portal, perspective-warped photo lenses, and air-painting with gestures — all in one live camera app.
 
+## Demo
+
+Point your index and paint in the air — the neon canvas follows your fingertip, with one pen color per stroke. Tap both index fingertips together to cycle colors:
+
+![Air drawing in GAMBAR mode](docs/screenshots/gambar-3.jpg)
+
+| | |
+|---|---|
+| ![Neon strokes in GAMBAR mode](docs/screenshots/gambar-1.jpg) | ![Multi-color air canvas](docs/screenshots/gambar-2.jpg) |
+
 ## Modes
 
 | Mode | What it does |
