@@ -132,6 +132,7 @@ In-mode gestures:
 | `p` | Next pen color (GAMBAR) |
 | `c` | Clear canvas (GAMBAR) |
 | `d` | Toggle debug overlay |
+| `y` | Toggle fullscreen (`Esc` exits fullscreen) |
 | `q` | Quit |
 
 ## How it works

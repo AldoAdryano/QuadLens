@@ -19,6 +19,15 @@ import capture
 KEY_MODE = {ord("f"): "FILTERS", ord("l"): "LENSA", ord("g"): "GAMBAR"}
 
 
+def toggle_fullscreen(nama, penuh):
+    baru = not penuh
+    cv2.setWindowProperty(
+        nama, cv2.WND_PROP_FULLSCREEN,
+        cv2.WINDOW_FULLSCREEN if baru else cv2.WINDOW_NORMAL,
+    )
+    return baru
+
+
 def parse_source(value: str):
     return int(value) if value.isdigit() else value
 
@@ -82,6 +91,8 @@ def main():
     debug = False
     prev_time = 0.0
     source_label = str(args.source)
+    fullscreen = False
+    cv2.namedWindow("Filters", cv2.WINDOW_NORMAL)
 
     def ganti(target, now):
         nonlocal mode, sebelumnya
@@ -113,6 +124,8 @@ def main():
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
+        if key == ord("y") or (key == 27 and fullscreen):
+            fullscreen = toggle_fullscreen("Filters", fullscreen)
         if key == ord("d"):
             debug = not debug
 

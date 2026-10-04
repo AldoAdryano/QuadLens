@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest import mock
 
 import main
 
@@ -19,6 +20,23 @@ class TestModeKeys(unittest.TestCase):
         opts = os.environ.get("OPENCV_FFMPEG_CAPTURE_OPTIONS", "")
         self.assertIn("nobuffer", opts, "stream FFmpeg harus dibuka tanpa buffer")
         self.assertIn("low_delay", opts)
+
+
+class TestFullscreen(unittest.TestCase):
+    @mock.patch("main.cv2.setWindowProperty")
+    def test_toggle_on_then_off(self, m):
+        penuh = main.toggle_fullscreen("Filters", False)
+        self.assertTrue(penuh)
+        m.assert_called_with("Filters", main.cv2.WND_PROP_FULLSCREEN,
+                             main.cv2.WINDOW_FULLSCREEN)
+        penuh = main.toggle_fullscreen("Filters", penuh)
+        self.assertFalse(penuh)
+        m.assert_called_with("Filters", main.cv2.WND_PROP_FULLSCREEN,
+                             main.cv2.WINDOW_NORMAL)
+
+    def test_fullscreen_key_not_clashing(self):
+        self.assertNotIn(ord("y"), main.KEY_MODE)
+        self.assertNotIn(ord("y"), (ord(" "), ord("p"), ord("c")))
 
 
 if __name__ == "__main__":
