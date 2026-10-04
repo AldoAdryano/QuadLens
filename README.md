@@ -118,7 +118,7 @@ Using an external webcam? Any device index works: `python main.py --source 1` (o
 In-mode gestures:
 
 - **FILTERS** — pinch the portal closed to advance the filter.
-- **LENSA** — form the quad with two L-hands; spread to open, hold still to shoot.
+- **LENSA** — form the quad with two L-hands; clench it into a small circle to advance the lens, spread to open, hold still to shoot.
 - **GAMBAR** — index draws, fist clears, peace sign shows `PINDAH`.
 
 ## Keyboard

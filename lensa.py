@@ -212,6 +212,7 @@ from modes import is_L
 
 HALUS = 0.40
 MIN_BUKA = 120
+BUKA_LAGI = 160
 GOYANG = 9
 TAHAN_FOTO = 3.0
 
@@ -225,12 +226,14 @@ class LensaMode:
         self.mulai_diam = None
         self.idx = 0
         self._status = "-"
+        self.ganti_siap = True
 
     def on_enter(self, now):
         self.quad = None
         self.hilang = 99
         self.mulai_diam = None
         self._status = "-"
+        self.ganti_siap = True
 
     @property
     def lens_name(self):
@@ -273,14 +276,23 @@ class LensaMode:
             q = self.quad.astype(np.float32)
             diag = (np.linalg.norm(q[2] - q[0]) + np.linalg.norm(q[3] - q[1])) / 2
 
+            if diag >= BUKA_LAGI:
+                self.ganti_siap = True
+
             if diag < MIN_BUKA:
                 self._status = "GENGGAM"
                 self.mulai_diam = None
+                if self.ganti_siap:
+                    self.ganti_siap = False
+                    self.idx = (self.idx + 1) % len(LENSA_LIST)
+                    nama_lensa = LENSA_LIST[self.idx][0]
                 c = titik_int(q.mean(axis=0))
                 r = int(18 + 6 * math.sin(now * 6))
                 cv2.circle(tampil, c, r, CYAN, 2, cv2.LINE_AA)
                 cv2.circle(tampil, c, 3, CYAN, cv2.FILLED)
                 teks(tampil, "TARIK UNTUK MEMBUKA", (c[0] - 128, c[1] - 40), 0.6, 2)
+                teks(tampil, nama_lensa, (c[0] - 9 * len(nama_lensa), c[1] + r + 30),
+                     0.7, 2, CYAN)
             else:
                 efek, balik, meta = warp_efek(frame, q, fn, now)
                 if efek is not None:

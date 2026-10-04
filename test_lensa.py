@@ -195,4 +195,84 @@ class TestLensaMode(unittest.TestCase):
         self.assertEqual(m.status, "-")
 
 
+def clench_pair():
+    a = l_hand((150, 120), (156, 120))
+    b = l_hand((160, 120), (166, 120))
+    return Hands(left=a, right=b, all=[a, b])
+
+
+def mid_pair():
+    a = l_hand((120, 60), (160, 60))
+    b = l_hand((140, 180), (180, 180))
+    return Hands(left=a, right=b, all=[a, b])
+
+
+def diag_quad(hs, w=320, h=240):
+    sudut = []
+    for hand in hs.all:
+        sudut.append((int(hand.landmarks[4].x * w), int(hand.landmarks[4].y * h)))
+        sudut.append((int(hand.landmarks[8].x * w), int(hand.landmarks[8].y * h)))
+    q = urutkan_quad(sudut[:4])
+    return float(np.mean([np.linalg.norm(q[2] - q[0]), np.linalg.norm(q[3] - q[1])]))
+
+
+class TestGantiLensJepret(unittest.TestCase):
+    def frame(self):
+        return np.full((240, 320, 3), 80, np.uint8)
+
+    def feed_to_genggam(self, m, hands, t0, langkah=15):
+        t = t0
+        for _ in range(langkah):
+            m.update(self.frame(), hands, t, -1)
+            t += 0.1
+            if m.status == "GENGGAM":
+                return t
+        self.fail("quad tidak pernah mencapai GEGGAM")
+        return t
+
+    def test_fixture_zona_ambang(self):
+        self.assertLess(diag_quad(clench_pair()), L.MIN_BUKA)
+        self.assertGreaterEqual(diag_quad(mid_pair()), L.MIN_BUKA)
+        self.assertLess(diag_quad(mid_pair()), L.BUKA_LAGI)
+        self.assertGreater(diag_quad(l_pair()), L.BUKA_LAGI)
+
+    def test_jepret_ganti_lens_sekali_saja(self):
+        m = LensaMode(saver=lambda *a: None)
+        m.update(self.frame(), l_pair(), 0.0, -1)
+        awal = m.idx
+        t = self.feed_to_genggam(m, clench_pair(), 1.0)
+        self.assertEqual(m.idx, awal + 1, "jepret kecil harus ganti lens persis sekali")
+        for _ in range(10):
+            m.update(self.frame(), clench_pair(), t, -1)
+            t += 0.1
+        self.assertEqual(m.idx, awal + 1, "menahan jepret tidak boleh ganti berulang")
+
+    def test_buka_lalu_jepret_lagi_boleh(self):
+        m = LensaMode(saver=lambda *a: None)
+        m.update(self.frame(), l_pair(), 0.0, -1)
+        awal = m.idx
+        t = self.feed_to_genggam(m, clench_pair(), 1.0)
+        self.assertEqual(m.idx, awal + 1)
+        for _ in range(4):
+            m.update(self.frame(), l_pair(), t, -1)
+            t += 0.1
+        t = self.feed_to_genggam(m, clench_pair(), t)
+        self.assertEqual(m.idx, awal + 2, "setelah membuka penuh, jepret berikutnya harus berlaku")
+
+    def test_zona_tengah_tidak_mengaktifkan_lagi(self):
+        m = LensaMode(saver=lambda *a: None)
+        m.update(self.frame(), l_pair(), 0.0, -1)
+        awal = m.idx
+        t = self.feed_to_genggam(m, clench_pair(), 1.0)
+        self.assertEqual(m.idx, awal + 1)
+        for _ in range(6):
+            m.update(self.frame(), mid_pair(), t, -1)
+            t += 0.1
+        for _ in range(12):
+            m.update(self.frame(), clench_pair(), t, -1)
+            t += 0.1
+        self.assertEqual(m.idx, awal + 1,
+                         "zona histeresis (>= MIN_BUKA, < BUKA_LAGI) tidak boleh re-arm")
+
+
 import types
